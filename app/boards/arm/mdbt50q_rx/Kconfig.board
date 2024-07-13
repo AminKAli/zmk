@@ -1,0 +1,3 @@
+config BOARD_MDBT50Q_RX
+    bool "mdbt50q_rx"
+    depends on SOC_NRF52840_QIAA

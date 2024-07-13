@@ -1,0 +1,35 @@
+menuconfig ZMK_ESB
+    bool "Enable use of ESB for ZMK communication"
+    default y
+    select ESB
+
+if ZMK_ESB
+
+config ZMK_ESB_RECEIVER
+    bool "Set this device as an ESB Receiver"
+    default n
+    select ZMK_USB
+
+config ZMK_ESB_SECRET
+    string "Secret key that all grouped devices need to know"
+
+config ZMK_ESB_KEY
+    string "Encryption key to encrypt all communiations between grouped devices"
+
+config ESB_FAST_SWITCHING
+    bool "Enable fast switching when both ends are nrf52 or nrf53 devices"
+    default n
+    
+config ZMK_ESB_DYNAMIC_PAYLOAD
+    bool "Allow dynamic payload size"
+    default n
+
+if ZMK_ESB_RECEIVER
+
+config ZMK_ESB_TRANSMITTERS_COUNT
+    int "Number of ESB transmitter devices"
+    default 1
+
+endif # ZMK_ESB_RECEIVER
+
+endif #ZMK_ESB

@@ -16,6 +16,10 @@ config ZMK_SPLIT_ROLE_CENTRAL
     select BT_GATT_AUTO_DISCOVER_CCC
     select BT_SCAN_WITH_IDENTITY
 
+config ZMK_SPLIT_LLPM
+    bool "Enable LLPM BLE Protocol"
+    select BT_CENTRAL
+
 # Bump this value needed for concurrent GATT discovery of splits
 config BT_L2CAP_TX_BUF_COUNT
     default 5 if ZMK_SPLIT_ROLE_CENTRAL

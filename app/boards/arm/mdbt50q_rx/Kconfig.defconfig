@@ -1,0 +1,16 @@
+if BOARD_MDBT50Q_RX
+
+config ZMK_KEYBOARD_NAME
+    default "MDBT50Q-RX"
+
+if USB_DEVICE_STACK
+
+config USB_NRFX
+    default y
+
+endif # USB_DEVICE_STACK
+
+config BT_CTLR
+    default BT
+
+endif # BOARD_MDBT50Q_RX

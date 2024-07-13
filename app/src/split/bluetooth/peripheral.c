@@ -34,6 +34,7 @@ LOG_MODULE_DECLARE(zmk, CONFIG_ZMK_LOG_LEVEL);
 #include <zmk/events/split_peripheral_status_changed.h>
 #include <zmk/ble.h>
 #include <zmk/split/bluetooth/uuid.h>
+#include <sdc_hci_vs.h>
 
 static const struct bt_data zmk_ble_ad[] = {
     BT_DATA_BYTES(BT_DATA_FLAGS, (BT_LE_AD_GENERAL | BT_LE_AD_NO_BREDR)),
@@ -146,6 +147,30 @@ bool zmk_split_bt_peripheral_is_connected(void) { return is_connected; }
 
 bool zmk_split_bt_peripheral_is_bonded(void) { return is_bonded; }
 
+static int enable_llpm_mode(void) {
+    int err;
+    struct net_buf *buf;
+    sdc_hci_cmd_vs_llpm_mode_set_t *cmd_enable;
+
+    buf = bt_hci_cmd_create(SDC_HCI_OPCODE_CMD_VS_LLPM_MODE_SET, sizeof(*cmd_enable));
+    if (!buf) {
+        LOG_DBG("Could not allocate LLPM command buffer\n");
+        return -ENOMEM;
+    }
+
+    cmd_enable = net_buf_add(buf, sizeof(*cmd_enable));
+    cmd_enable->enable = true;
+
+    err = bt_hci_cmd_send_sync(SDC_HCI_OPCODE_CMD_VS_LLPM_MODE_SET, buf, NULL);
+    if (err) {
+        LOG_DBG("Error enabling LLPM %d\n", err);
+        return err;
+    }
+
+    LOG_DBG("LLPM mode enabled\n");
+    return 0;
+}
+
 static int zmk_peripheral_ble_complete_startup(void) {
 #if IS_ENABLED(CONFIG_ZMK_BLE_CLEAR_BONDS_ON_START)
     LOG_WRN("Clearing all existing BLE bond information from the keyboard");
@@ -184,6 +209,10 @@ static int zmk_peripheral_ble_init(void) {
         return err;
     }
 
+    if (enable_llpm_mode()) {
+        LOG_DBG("Enable LLPM mode failed.\n");
+        return 0;
+    }
 #if IS_ENABLED(CONFIG_SETTINGS)
     settings_register(&ble_peripheral_settings_handler);
 #else

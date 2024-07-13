@@ -123,7 +123,7 @@ menu "Output Types"
 
 config ZMK_USB
     bool "USB"
-    depends on (!ZMK_SPLIT || (ZMK_SPLIT && ZMK_SPLIT_ROLE_CENTRAL))
+    depends on (!ZMK_SPLIT || (ZMK_SPLIT && ZMK_SPLIT_ROLE_CENTRAL) || (ZMK_ESB_RECEIVER))
     select USB
     select USB_DEVICE_STACK
     select USB_DEVICE_HID
@@ -254,6 +254,7 @@ endmenu
 endmenu
 
 rsource "src/split/Kconfig"
+rsource "src/esb/Kconfig"
 
 #Basic Keyboard Setup
 endmenu

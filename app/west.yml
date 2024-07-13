@@ -37,5 +37,11 @@ manifest:
       revision: 42446798e357e8021c5202a01ea250a34a776e85
       path: modules/msgs/zmk-studio-messages
       remote: zmkfirmware
+    - name: nrf
+      url: https://github.com/nrfconnect/sdk-nrf
+      revision: v2.6.1
+    - name: nrfxlib
+      url: https://github.com/nrfconnect/sdk-nrfxlib
+      revision: v2.6.1
   self:
     west-commands: scripts/west-commands.yml

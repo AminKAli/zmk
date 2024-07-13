@@ -30,10 +30,15 @@ LOG_MODULE_DECLARE(zmk, CONFIG_ZMK_LOG_LEVEL);
 #include <zmk/events/sensor_event.h>
 #include <zmk/events/battery_state_changed.h>
 #include <zmk/hid_indicators_types.h>
+#include <sdc_hci_vs.h>
 
 static int start_scanning(void);
 
 #define POSITION_STATE_DATA_LEN 16
+
+#define INTERVAL_LLPM 0x0D01 /* Proprietary  1 ms */
+#define INTERVAL_LLPM_US 1000
+static struct bt_conn *default_conn;
 
 enum peripheral_slot_state {
     PERIPHERAL_SLOT_STATE_OPEN,
@@ -68,6 +73,41 @@ static const struct bt_uuid_128 split_service_uuid = BT_UUID_INIT_128(ZMK_SPLIT_
 
 K_MSGQ_DEFINE(peripheral_event_msgq, sizeof(struct zmk_position_state_changed),
               CONFIG_ZMK_SPLIT_BLE_CENTRAL_POSITION_QUEUE_SIZE, 4);
+
+static int vs_change_connection_interval(uint16_t interval_us) {
+    int err;
+    struct net_buf *buf;
+
+    sdc_hci_cmd_vs_conn_update_t *cmd_conn_update;
+
+    buf = bt_hci_cmd_create(SDC_HCI_OPCODE_CMD_VS_CONN_UPDATE, sizeof(*cmd_conn_update));
+    if (!buf) {
+        LOG_DBG("Could not allocate command buffer\n");
+        return -ENOMEM;
+    }
+
+    uint16_t conn_handle;
+
+    err = bt_hci_get_conn_handle(default_conn, &conn_handle);
+    if (err) {
+        LOG_DBG("Failed obtaining conn_handle (err %d)\n", err);
+        return err;
+    }
+
+    cmd_conn_update = net_buf_add(buf, sizeof(*cmd_conn_update));
+    cmd_conn_update->conn_handle = conn_handle;
+    cmd_conn_update->conn_interval_us = interval_us;
+    cmd_conn_update->conn_latency = 0;
+    cmd_conn_update->supervision_timeout = 300;
+
+    err = bt_hci_cmd_send_sync(SDC_HCI_OPCODE_CMD_VS_CONN_UPDATE, buf, NULL);
+    if (err) {
+        LOG_DBG("Update connection parameters failed (err %d)\n", err);
+        return err;
+    }
+
+    return 0;
+}
 
 void peripheral_event_work_callback(struct k_work *work) {
     struct zmk_position_state_changed ev;
@@ -550,6 +590,13 @@ static void split_central_process_connection(struct bt_conn *conn) {
     LOG_DBG("New connection params: Interval: %d, Latency: %d, PHY: %d", info.le.interval,
             info.le.latency, info.le.phy->rx_phy);
 
+#if IS_ENABLED(CONFIG_ZMK_SPLIT_LLPM)
+    if(info.le.interval == 6){
+        k_sleep(K_MSEC(500));
+        vs_change_connection_interval(INTERVAL_LLPM_US);
+    }
+#endif // IS_ENABLED(CONFIG_ZMK_SPLIT_LLPM)
+
     // Restart scanning if necessary.
     start_scanning();
 }
@@ -691,6 +738,8 @@ static void split_central_connected(struct bt_conn *conn, uint8_t conn_err) {
     char addr[BT_ADDR_LE_STR_LEN];
     struct bt_conn_info info;
 
+    default_conn = bt_conn_ref(conn);
+
     bt_addr_le_to_str(bt_conn_get_dst(conn), addr, sizeof(addr));
 
     bt_conn_get_info(conn, &info);
@@ -739,10 +788,16 @@ static void split_central_disconnected(struct bt_conn *conn, uint8_t reason) {
     start_scanning();
 }
 
-static struct bt_conn_cb conn_callbacks = {
-    .connected = split_central_connected,
-    .disconnected = split_central_disconnected,
-};
+static void le_param_updated(struct bt_conn *conn, uint16_t interval, uint16_t latency,
+                             uint16_t timeout) {
+    if (interval == INTERVAL_LLPM) {
+        LOG_DBG("Connection interval updated: LLPM (1 ms)\n");
+    }
+}
+
+static struct bt_conn_cb conn_callbacks = {.connected = split_central_connected,
+                                           .disconnected = split_central_disconnected,
+                                           .le_param_updated = le_param_updated};
 
 K_THREAD_STACK_DEFINE(split_central_split_run_q_stack,
                       CONFIG_ZMK_SPLIT_BLE_CENTRAL_SPLIT_RUN_STACK_SIZE);
@@ -866,6 +921,30 @@ int zmk_split_bt_update_hid_indicator(zmk_hid_indicators_t indicators) {
 
 #endif // IS_ENABLED(CONFIG_ZMK_SPLIT_PERIPHERAL_HID_INDICATORS)
 
+static int enable_llpm_mode(void) {
+    int err;
+    struct net_buf *buf;
+    sdc_hci_cmd_vs_llpm_mode_set_t *cmd_enable;
+
+    buf = bt_hci_cmd_create(SDC_HCI_OPCODE_CMD_VS_LLPM_MODE_SET, sizeof(*cmd_enable));
+    if (!buf) {
+        LOG_DBG("Could not allocate LLPM command buffer\n");
+        return -ENOMEM;
+    }
+
+    cmd_enable = net_buf_add(buf, sizeof(*cmd_enable));
+    cmd_enable->enable = true;
+
+    err = bt_hci_cmd_send_sync(SDC_HCI_OPCODE_CMD_VS_LLPM_MODE_SET, buf, NULL);
+    if (err) {
+        LOG_DBG("Error enabling LLPM %d\n", err);
+        return err;
+    }
+
+    LOG_DBG("LLPM mode enabled\n");
+    return 0;
+}
+
 static int finish_init() {
     return IS_ENABLED(CONFIG_ZMK_BLE_CLEAR_BONDS_ON_START) ? 0 : start_scanning();
 }
@@ -883,6 +962,13 @@ static struct settings_handler ble_central_settings_handler = {
 #endif // IS_ENABLED(CONFIG_SETTINGS)
 
 static int zmk_split_bt_central_init(void) {
+#if IS_ENABLED(CONFIG_ZMK_SPLIT_LLPM)
+    if (enable_llpm_mode()) {
+        LOG_DBG("Enable LLPM mode failed.\n");
+        return 0;
+    }
+#endif // IS_ENABLED(CONFIG_ZMK_SPLIT_LLPM)
+
     k_work_queue_start(&split_central_split_run_q, split_central_split_run_q_stack,
                        K_THREAD_STACK_SIZEOF(split_central_split_run_q_stack),
                        CONFIG_ZMK_BLE_THREAD_PRIORITY, NULL);
