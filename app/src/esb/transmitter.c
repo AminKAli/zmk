@@ -7,20 +7,69 @@ LOG_MODULE_DECLARE(zmk, CONFIG_ZMK_LOG_LEVEL);
 #include <zephyr/devicetree.h>
 #include <zephyr/kernel.h>
 #include <zephyr/types.h>
+#include <zephyr/drivers/counter.h>
 #include <zephyr/drivers/clock_control.h>
 #include <zephyr/drivers/clock_control/nrf_clock_control.h>
 
 #include <nrf.h>
 #include <esb.h>
+#include <nrfx_clock.h>
 
 #include <zmk/event_manager.h>
 #include <zmk/events/position_state_changed.h>
+
+#define CLOCK_SLEEP_TIMEOUT_US 1000 // 1ms
+static u_int32_t last_activity;
 
 static bool ready = true;
 static struct esb_payload rx_payload;
 static struct esb_payload tx_payload = ESB_CREATE_PAYLOAD(0,
 	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
 	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00); // struct zmk_position_state_changed = 14 bytes
+
+#define TIMER DT_NODELABEL(rtc0)
+#define DELAY_US 500
+#define ALARM_CHANNEL_ID 0
+const struct device *const counter_dev = DEVICE_DT_GET(TIMER);
+struct counter_alarm_cfg alarm_cfg;
+
+static void esb_idle_timeout(const struct device *counter_dev, uint8_t chan_id, uint32_t ticks, void *user_data){
+	if(esb_is_idle()){
+		LOG_DBG("ESB is idle, stopping IDLE");
+		nrfx_clock_hfclk_stop();
+	} else {
+		LOG_DBG("ESB is not idle yet");
+	}
+
+	counter_cancel_channel_alarm(counter_dev, ALARM_CHANNEL_ID);
+}
+
+void reset_idle_checker(){
+	int err;
+
+	alarm_cfg.flags = 0;
+	alarm_cfg.ticks = counter_us_to_ticks(counter_dev, DELAY_US);
+	alarm_cfg.callback = esb_idle_timeout;
+	alarm_cfg.user_data = &alarm_cfg;
+
+	err = counter_cancel_channel_alarm(counter_dev, ALARM_CHANNEL_ID);
+	if (err) {
+		LOG_ERR("Failed to cancel existing idle counter");
+	} else {
+		LOG_DBG("Counter alarm cancelled successfully");
+	}
+
+	err = counter_set_channel_alarm(counter_dev, ALARM_CHANNEL_ID, &alarm_cfg);
+	if (-EINVAL == err) {
+		printk("Alarm settings invalid\n");
+	} else if (-ENOTSUP == err) {
+		printk("Alarm setting request not supported\n");
+	} else if (err != 0) {
+		printk("Error\n");
+	} else {
+		LOG_DBG("Alarm set");
+	}
+}
 
 void event_handler(struct esb_evt const *event)
 {
@@ -45,38 +94,17 @@ void event_handler(struct esb_evt const *event)
 		}
 		break;
 	}
+	if(IS_ENABLED(CONFIG_ZMK_ESB_REDUCE_CONSUMPTION)){
+		reset_idle_checker();
+	}
 }
 
 int clocks_start(void)
 {
-	int err;
-	int res;
-	struct onoff_manager *clk_mgr;
-	struct onoff_client clk_cli;
-
-	clk_mgr = z_nrf_clock_control_get_onoff(CLOCK_CONTROL_NRF_SUBSYS_HF);
-	if (!clk_mgr) {
-		LOG_ERR("Unable to get the Clock manager");
-		return -ENXIO;
+	LOG_DBG("Starting HF Clock");
+	nrfx_clock_hfclk_start();
+	while (!nrfx_clock_hfclk_is_running()) {
 	}
-
-	sys_notify_init_spinwait(&clk_cli.notify);
-
-	err = onoff_request(clk_mgr, &clk_cli);
-	if (err < 0) {
-		LOG_ERR("Clock request failed: %d", err);
-		return err;
-	}
-
-	do {
-		err = sys_notify_fetch_result(&clk_cli.notify, &res);
-		if (!err && res) {
-			LOG_ERR("Clock could not be started: %d", res);
-			return res;
-		}
-	} while (err);
-
-	LOG_DBG("HF clock started");
 	return 0;
 }
 
@@ -141,6 +169,9 @@ int esb_initialize(void)
 
 int pos_change_listener(const zmk_event_t *eh) {
     LOG_DBG("zmk pos event received");
+	if(IS_ENABLED(CONFIG_ZMK_ESB_REDUCE_CONSUMPTION)){
+		clocks_start();
+	}
 	const struct zmk_position_state_changed *pos_ev;
 	if ((pos_ev = as_zmk_position_state_changed(eh)) != NULL) {
 		if (pos_ev->state){
@@ -188,19 +219,27 @@ int pos_change_listener(const zmk_event_t *eh) {
 static void zmk_esb_transmitter_init(void) {
 	int err;
 
-	err = clocks_start();
-	if (err) {
-		LOG_ERR("HF Clock initialization failed, err %d", err);
-		return 0;
-	}
-
 	err = esb_initialize();
 	if (err) {
 		LOG_ERR("ESB initialization failed, err %d", err);
 		return 0;
 	}
 	LOG_DBG("ESB Initialization success");
+
+	if(IS_ENABLED(CONFIG_ZMK_ESB_REDUCE_CONSUMPTION)){
+		err = counter_start(counter_dev);
+		if (err) {
+			LOG_ERR("Counter initialization failed, err %d", err);
+			return 0;
+		}
+		LOG_DBG("Counter Initialization success");
+
+		reset_idle_checker();
+	} else {
+		clocks_start();
+	}
 }
+
 
 SYS_INIT(zmk_esb_transmitter_init, APPLICATION, 50);
 ZMK_LISTENER(transmitter, pos_change_listener);

@@ -16,13 +16,18 @@ config ZMK_ESB_SECRET
 config ZMK_ESB_KEY
     string "Encryption key to encrypt all communiations between grouped devices"
 
-config ESB_FAST_SWITCHING
+config ESB_FAST_RAMP_UP
     bool "Enable fast switching when both ends are nrf52 or nrf53 devices"
     default n
     
 config ZMK_ESB_DYNAMIC_PAYLOAD
     bool "Allow dynamic payload size"
     default n
+
+config ZMK_ESB_REDUCE_CONSUMPTION
+    bool "Puts the HFClock to sleep to reduce power in exchange for increased latency"
+    default n
+    select COUNTER
 
 if ZMK_ESB_RECEIVER
 

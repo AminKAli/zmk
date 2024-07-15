@@ -1,0 +1,30 @@
+/*
+ * Copyright (c) 2022-2023 Marcin Niestroj
+ *
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
+/dts-v1/;
+#include "xiao_ble_common.dtsi"
+
+/ {
+	model = "Seeed XIAO BLE";
+	compatible = "seeed,xiao-ble";
+
+	chosen {
+        zephyr,code-partition = &code_partition;
+        zephyr,sram = &sram0;
+        zephyr,flash = &flash0;
+        zmk,kscan = &kscan;
+    };
+
+    kscan: kscan {
+        compatible = "zmk,kscan-gpio-direct";
+
+        input-gpios = <&gpio0 5 (GPIO_ACTIVE_LOW | GPIO_PULL_UP)>;
+    };
+};
+
+&rtc0 {
+	status = "okay";
+};

@@ -209,10 +209,13 @@ static int zmk_peripheral_ble_init(void) {
         return err;
     }
 
+#if IS_ENABLED(CONFIG_ZMK_SPLIT_LLPM)
     if (enable_llpm_mode()) {
         LOG_DBG("Enable LLPM mode failed.\n");
         return 0;
     }
+#endif // IS_ENABLED(CONFIG_ZMK_SPLIT_LLPM)
+
 #if IS_ENABLED(CONFIG_SETTINGS)
     settings_register(&ble_peripheral_settings_handler);
 #else
