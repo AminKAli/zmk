@@ -1,0 +1,23 @@
+menuconfig ZMK_GAZELL
+    bool "Enable use of Gazell for ZMK communication"
+    default y
+    select GZLL
+    select CLOCK_CONTROL_NRF
+    select GAZELL
+
+if ZMK_GAZELL
+
+config ZMK_GAZELL_RECEIVER
+    bool "Set this device as an Gazell Receiver"
+    default n
+    select ZMK_USB
+
+if ZMK_GAZELL_RECEIVER
+
+config ZMK_GAZELL_TRANSMITTERS_COUNT
+    int "Number of Gazell transmitter devices"
+    default 1
+
+endif # ZMK_GAZELL_RECEIVER
+
+endif #ZMK_GAZELL

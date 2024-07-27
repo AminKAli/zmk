@@ -255,6 +255,7 @@ endmenu
 
 rsource "src/split/Kconfig"
 rsource "src/esb/Kconfig"
+rsource "src/gazell/Kconfig"
 
 #Basic Keyboard Setup
 endmenu

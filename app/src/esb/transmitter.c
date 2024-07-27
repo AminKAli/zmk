@@ -27,8 +27,9 @@ static struct esb_payload tx_payload = ESB_CREATE_PAYLOAD(0,
 	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
 	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00); // struct zmk_position_state_changed = 14 bytes
 
+#if IS_ENABLED(CONFIG_ZMK_ESB_REDUCE_CONSUMPTION)
 #define TIMER DT_NODELABEL(rtc0)
-#define DELAY_US 500
+#define DELAY_US 250
 #define ALARM_CHANNEL_ID 0
 const struct device *const counter_dev = DEVICE_DT_GET(TIMER);
 struct counter_alarm_cfg alarm_cfg;
@@ -70,6 +71,7 @@ void reset_idle_checker(){
 		LOG_DBG("Alarm set");
 	}
 }
+#endif
 
 void event_handler(struct esb_evt const *event)
 {

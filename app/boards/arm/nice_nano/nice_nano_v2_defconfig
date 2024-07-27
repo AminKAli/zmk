@@ -23,5 +23,24 @@ CONFIG_FLASH=y
 CONFIG_FLASH_PAGE_LAYOUT=y
 CONFIG_FLASH_MAP=y
 
-CONFIG_ZMK_BLE=y
-CONFIG_ZMK_USB=y
+# CONFIG_ZMK_USB=y
+# # CONFIG_USB_DEVICE_STACK=y
+
+# CONFIG_ZMK_ESB=n  # Set to y to enable ESB protocol
+# # CONFIG_ZMK_ESB_RECEIVER=n # Set to 'y' to build a receiver(central) image and 'n' to build a transmitter(peripheral) 
+# # CONFIG_ESB_FAST_RAMP_UP=n
+# # CONFIG_ZMK_ESB_DYNAMIC_PAYLOAD=y
+# # CONFIG_ZMK_ESB_REDUCE_CONSUMPTION=y
+
+# CONFIG_ZMK_GAZELL=n
+# # CONFIG_ZMK_GAZELL_RECEIVER=n
+
+# CONFIG_ZMK_BLE=n  # Set to 'y' to enable BLE
+# # CONFIG_ZMK_SPLIT_LLPM=n  # Set to 'y' to enable LLPM 1ms protocol
+# # CONFIG_ZMK_SPLIT_ROLE_CENTRAL=n  # Set to 'y' to build a central image and 'n' to build a peripheral
+# # CONFIG_ZMK_SPLIT=y
+
+# # CONFIG_ZMK_KSCAN_DEBOUNCE_PRESS_MS=0
+# # CONFIG_ZMK_KSCAN_DEBOUNCE_RELEASE_MS=5
+
+# CONFIG_ZMK_EXT_POWER=n
