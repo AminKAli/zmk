@@ -28,7 +28,7 @@ Refer to the [Configuration](/docs/config) documentation for more details on thi
 ## Keymap
 
 Once you have the basic user config completed, you can find the keymap file in `config/<keyboard>.keymap` and customize from there.
-Refer to the [Keymap](features/keymaps.mdx) documentation to learn more.
+Refer to the [Keymaps](keymaps/index.mdx) documentation to learn more.
 
 ## Publishing
 
@@ -49,7 +49,7 @@ It is also possible to build firmware locally on your computer by following the 
 
 For normal keyboards, follow the same flashing instructions as before to flash your updated firmware.
 
-For split keyboards, only the central (left) side will need to be reflashed if you are just updating your keymap.
+For [split keyboards](features/split-keyboards.md#building-and-flashing-firmware), only the central (left) side will need to be reflashed if you are just updating your keymap.
 More troubleshooting information for split keyboards can be found [here](troubleshooting/connection-issues.mdx#split-keyboard-halves-unable-to-pair).
 
 ## Building Additional Keyboards

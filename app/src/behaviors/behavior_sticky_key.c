@@ -26,7 +26,7 @@ LOG_MODULE_DECLARE(zmk, CONFIG_ZMK_LOG_LEVEL);
 
 #define KEY_PRESS DEVICE_DT_NAME(DT_INST(0, zmk_behavior_key_press))
 
-#define ZMK_BHV_STICKY_KEY_MAX_HELD 10
+#define ZMK_BHV_STICKY_KEY_MAX_HELD CONFIG_ZMK_BEHAVIOR_STICKY_KEY_MAX_HELD
 
 #define ZMK_BHV_STICKY_KEY_POSITION_FREE UINT32_MAX
 
@@ -200,6 +200,7 @@ static int sticky_key_parameter_domains(const struct device *sk,
                                               &child_metadata);
     if (err < 0) {
         LOG_WRN("Failed to get the sticky key bound behavior parameter: %d", err);
+        return err;
     }
 
     for (int s = 0; s < child_metadata.sets_len; s++) {
